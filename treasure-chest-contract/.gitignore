@@ -1,0 +1,11 @@
+target
+node_modules
+.env
+.vscode
+.DS_Store
+
+# Ignore Cargo.lock in favor of using nix-shell's lock file
+Cargo.lock
+
+# Ignore history files from the shell
+*.history

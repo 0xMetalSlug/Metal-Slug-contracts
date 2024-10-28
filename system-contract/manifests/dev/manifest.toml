@@ -1,0 +1,94 @@
+[world]
+kind = "WorldContract"
+class_hash = "0x3f63cecdc4964acafb921ba2934c6507d1b3c344edb64c2762cf08053169ab9"
+original_class_hash = "0x3f63cecdc4964acafb921ba2934c6507d1b3c344edb64c2762cf08053169ab9"
+abi = "manifests/dev/abis/deployments/dojo_world_world.json"
+address = "0x3fc31e9e67c7f7c25033bb79bdb34d585e4c2260a65d958f31945d89f63d1fa"
+transaction_hash = "0x4e1a609585a971dd7c1f936b5271da872a0ffa2bdc64449d6d40c58835213ae"
+block_number = 3
+seed = "metalslug"
+name = "dojo::world::world"
+
+[world.metadata]
+profile_name = "dev"
+rpc_url = "http://localhost:5050/"
+
+[base]
+kind = "Class"
+class_hash = "0x22f3e55b61d86c2ac5239fa3b3b8761f26b9a5c0b5f61ddbd5d756ced498b46"
+original_class_hash = "0x22f3e55b61d86c2ac5239fa3b3b8761f26b9a5c0b5f61ddbd5d756ced498b46"
+name = "dojo::base::base"
+
+[[contracts]]
+kind = "DojoContract"
+address = "0x6fc2b43d118f26d99c66bc486011fe69a32af5623a1ae80ef73891498cc1b79"
+class_hash = "0x6f9fb2ecc987730ccc26b3aaf2a86b040d4d4dc953ea377f3719825e2dd48fe"
+original_class_hash = "0x6f9fb2ecc987730ccc26b3aaf2a86b040d4d4dc953ea377f3719825e2dd48fe"
+base_class_hash = "0x22f3e55b61d86c2ac5239fa3b3b8761f26b9a5c0b5f61ddbd5d756ced498b46"
+abi = "manifests/dev/abis/deployments/contracts/metalslug_systems_actions_MetalSlug.json"
+reads = []
+writes = []
+computed = []
+init_calldata = []
+name = "metalslug::systems::actions::MetalSlug"
+
+[[models]]
+kind = "DojoModel"
+class_hash = "0x2df38fdf8713f83130fd7e6733bca632f65dc60acf2dc065002de01dfc3fa92"
+original_class_hash = "0x2df38fdf8713f83130fd7e6733bca632f65dc60acf2dc065002de01dfc3fa92"
+abi = "manifests/dev/abis/deployments/models/metalslug_models_player_player_data.json"
+name = "metalslug::models::player::player_data"
+
+[[models.members]]
+name = "address"
+type = "ContractAddress"
+key = true
+
+[[models.members]]
+name = "treasury"
+type = "u256"
+key = false
+
+[[models.members]]
+name = "highest_match_level"
+type = "u32"
+key = false
+
+[[models]]
+kind = "DojoModel"
+class_hash = "0x71fafbd8d37429660e01631b9afe08c326505bb4348d7f42240104e5a3f2ad7"
+original_class_hash = "0x71fafbd8d37429660e01631b9afe08c326505bb4348d7f42240104e5a3f2ad7"
+abi = "manifests/dev/abis/deployments/models/metalslug_models_system_system_manager.json"
+name = "metalslug::models::system::system_manager"
+
+[[models.members]]
+name = "system"
+type = "ContractAddress"
+key = true
+
+[[models.members]]
+name = "validator_address"
+type = "ContractAddress"
+key = false
+
+[[models]]
+kind = "DojoModel"
+class_hash = "0x4ca8e78079983c0671cd1020895f4b379aa2012e92e8827fb44f8318f4556d4"
+original_class_hash = "0x4ca8e78079983c0671cd1020895f4b379aa2012e92e8827fb44f8318f4556d4"
+abi = "manifests/dev/abis/deployments/models/metalslug_models_system_validator_signature.json"
+name = "metalslug::models::system::validator_signature"
+
+[[models.members]]
+name = "system"
+type = "ContractAddress"
+key = true
+
+[[models.members]]
+name = "msg_hash"
+type = "felt252"
+key = true
+
+[[models.members]]
+name = "is_used"
+type = "bool"
+key = false
