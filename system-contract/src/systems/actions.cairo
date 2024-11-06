@@ -20,12 +20,12 @@ mod MetalSlug {
 
     const END_MATCH_REWARD_TYPE_HASH: felt252 =
         selector!(
-            "EndMatchReward(player:ContractAddress,treasury:u256,match_level:u32,salt_nonce:u64)u256(low:felt,high:felt)"
+            "EndMatchReward(player:felt,treasury:u256,match_level:felt,salt_nonce:felt)u256(low:felt,high:felt)"
         );
 
     const GRAFT_TREASURE_CHEST_TYPE_HASH: felt252 =
         selector!(
-            "TreasureChest(player:ContractAddress,chest_address:ContractAddress,chest_id:u256,amount:u256,salt_nonce:u64)u256(low:felt,high:felt)"
+            "TreasureChest(player:felt,chest_address:felt,chest_id:u256,amount:u256,salt_nonce:felt)u256(low:felt,high:felt)"
         );
 
     // ============ Structs ============
