@@ -58,7 +58,7 @@ async function claimEndMatchReward() {
       EndMatchReward: [
         {
           name: 'player',
-          type: 'ContractAddress',
+          type: 'felt',
         },
         {
           name: 'treasury',
@@ -66,11 +66,11 @@ async function claimEndMatchReward() {
         },
         {
           name: 'match_level',
-          type: 'u32',
+          type: 'felt',
         },
         {
           name: 'salt_nonce',
-          type: 'u64',
+          type: 'felt',
         },
       ],
       u256: [
@@ -82,12 +82,12 @@ async function claimEndMatchReward() {
     domain: {
       name: 'metalslug',
       version: '1',
-      chainId: shortString.encodeShortString('KATANA'),
+      chainId: '0x57505f4d4554414c534c55475f444556',
     },
     message: {
       player: playerAddress,
       treasury: uint256.bnToUint256(100),
-      match_level: 1,
+      match_level: '1',
       salt_nonce: saltNonce,
     },
   };
@@ -113,7 +113,7 @@ async function claimEndMatchReward() {
 
 async function graftTreasureChest() {
   const chestAddress =
-    '0x48dc6d951159ce9cd914621db348886a5510f7406f0bc2f1389103361503728';
+    '0x2b304bffb5df48057f26d3f3bc4c72ca7974a755c21e8b20cc2ce3f234f988e';
 
   const saltNonce = Math.round(Date.now() / 1e3);
 
@@ -136,11 +136,11 @@ async function graftTreasureChest() {
       TreasureChest: [
         {
           name: 'player',
-          type: 'ContractAddress',
+          type: 'felt',
         },
         {
           name: 'chest_address',
-          type: 'ContractAddress',
+          type: 'felt',
         },
         {
           name: 'chest_id',
@@ -152,7 +152,7 @@ async function graftTreasureChest() {
         },
         {
           name: 'salt_nonce',
-          type: 'u64',
+          type: 'felt',
         },
       ],
       u256: [
@@ -164,7 +164,7 @@ async function graftTreasureChest() {
     domain: {
       name: 'metalslug',
       version: '1',
-      chainId: shortString.encodeShortString('KATANA'),
+      chainId: '0x57505f4d4554414c534c55475f444556',
     },
     message: {
       player: playerAddress,
@@ -197,11 +197,11 @@ async function graftTreasureChest() {
 
 async function createAccount() {
   const privateKey =
-    '0x2bbf4f9fd0bbb2e60b0316c1fe0b76cf7a4d0198bd493ced9b8df2a3a24d68a';
+    '0x3e3979c1ed728490308054fe357a9f49cf67f80f9721f44cc57235129e090f4';
   const starkKeyPub = ec.starkCurve.getStarkKey(privateKey);
 
   const classHash =
-    '0x05400e90f7e0ae78bd02c77cd75527280470e2fe19c54970dd79dc37a9d3645c';
+    '0x7dc7899aa655b0aae51eadff6d801a58e97dd99cf4666ee59e704249e51adf2';
 
   const OZaccountConstructorCallData = CallData.compile({
     publicKey: starkKeyPub,
@@ -308,4 +308,10 @@ function getMessageHash() {
   console.log(hash);
 }
 
-getMessageHash();
+async function getAccount() {
+  const classHash = await provider.getClassHashAt(
+    '0x6677fe62ee39c7b07401f754138502bab7fac99d2d3c5d37df7d1c6fab10819'
+  );
+  console.log(classHash);
+}
+graftTreasureChest();

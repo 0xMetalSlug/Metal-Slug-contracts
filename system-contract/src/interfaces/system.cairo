@@ -2,7 +2,7 @@ use starknet::ContractAddress;
 use metalslug::models::system::SystemManager;
 use metalslug::models::player::PlayerData;
 
-#[dojo::interface]
+#[starknet::interface]
 trait IMetalSlugImpl<TState> {
     /// Initializes the actions contract with validator contract address.
     ///
@@ -10,7 +10,7 @@ trait IMetalSlugImpl<TState> {
     ///
     /// - `validator_address` The address of the validator contract to be used for verifying
     /// actions.
-    fn initialize(ref world: IWorldDispatcher, validator_address: ContractAddress);
+    fn initialize(ref self: TState, validator_address: ContractAddress);
 
     /// Updates the validator address.
     ///
@@ -18,7 +18,7 @@ trait IMetalSlugImpl<TState> {
     ///
     /// - `validator_address` The address of the validator contract to be used for verifying
     /// actions.
-    fn update_validator_address(ref world: IWorldDispatcher, validator_address: ContractAddress);
+    fn update_validator_address(ref self: TState, validator_address: ContractAddress);
 
     /// Claims the reward at the end of a match, sending the reward to the treasury.
     ///
@@ -32,11 +32,7 @@ trait IMetalSlugImpl<TState> {
     ///
     /// Emits a `ClaimEndMatchReward` event.
     fn claim_end_match_reward(
-        ref world: IWorldDispatcher,
-        treasury: u256,
-        match_level: u32,
-        salt_nonce: u64,
-        sign: Array<felt252>
+        ref self: TState, treasury: u256, match_level: u32, salt_nonce: u64, sign: Array<felt252>
     );
 
     /// Grafts a treasure chest by verifying a signature.
@@ -52,7 +48,7 @@ trait IMetalSlugImpl<TState> {
     ///
     /// Emits a `GraftTreasureChest` event.
     fn graft_treasure_chest(
-        ref world: IWorldDispatcher,
+        ref self: TState,
         chest_address: ContractAddress,
         chest_id: u256,
         amount: u256,
@@ -61,12 +57,12 @@ trait IMetalSlugImpl<TState> {
     );
 
     /// Returns the system manager.
-    fn get_system_manager(ref world: IWorldDispatcher) -> SystemManager;
+    fn get_system_manager(self: @TState) -> SystemManager;
 
     /// Returns the player data.
-    /// 
+    ///
     /// Requirements:
-    ///    
+    ///
     /// - `address` The address of the player.
-    fn get_player_data(ref world: IWorldDispatcher, address: ContractAddress) -> PlayerData;
+    fn get_player_data(self: @TState, address: ContractAddress) -> PlayerData;
 }

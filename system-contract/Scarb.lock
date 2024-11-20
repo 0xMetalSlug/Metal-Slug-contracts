@@ -3,20 +3,29 @@ version = 1
 
 [[package]]
 name = "dojo"
-version = "0.7.3"
-source = "git+https://github.com/dojoengine/dojo?tag=v0.7.4#e8cf2361bf5bcdd58642ea9b6e33c983cf5b20ac"
+version = "1.0.0"
+source = "git+https://github.com/dojoengine/dojo?tag=v1.0.0#74280d48fa2828095331487dede59f9b2e378cd3"
 dependencies = [
  "dojo_plugin",
 ]
 
 [[package]]
+name = "dojo_cairo_test"
+version = "1.0.0-rc.0"
+source = "git+https://github.com/dojoengine/dojo?tag=v1.0.0#74280d48fa2828095331487dede59f9b2e378cd3"
+dependencies = [
+ "dojo",
+]
+
+[[package]]
 name = "dojo_plugin"
-version = "0.4.1"
-source = "git+https://github.com/dojoengine/dojo?tag=v0.7.2#3da5cad9fdd39b81551e0668015d88262e6c5fc4"
+version = "2.8.4"
+source = "git+https://github.com/dojoengine/dojo?tag=v1.0.0#74280d48fa2828095331487dede59f9b2e378cd3"
 
 [[package]]
 name = "metalslug"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "dojo",
+ "dojo_cairo_test",
 ]

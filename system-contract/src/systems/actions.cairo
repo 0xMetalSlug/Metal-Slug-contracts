@@ -13,6 +13,9 @@ mod MetalSlug {
     use core::pedersen::PedersenTrait;
     use core::hash::{HashStateTrait, HashStateExTrait};
 
+    use dojo::model::{ModelStorage, ModelValueStorage};
+    use dojo::event::EventStorage;
+
     const STARKNET_DOMAIN_TYPE_HASH: felt252 =
         selector!("StarkNetDomain(name:felt,version:felt,chainId:felt)");
 
@@ -86,36 +89,43 @@ mod MetalSlug {
     // ============ External Functions ============
     #[abi(embed_v0)]
     impl MetalSlugImpl of IMetalSlugImpl<ContractState> {
-        fn initialize(ref world: IWorldDispatcher, validator_address: ContractAddress) {
-            let system: SystemManager = get!(world, get_contract_address(), (SystemManager));
+        fn initialize(ref self: ContractState, validator_address: ContractAddress) {
+            let mut world = self.world_default();
+            let system: SystemManager = world.read_model(get_contract_address());
             assert(system.validator_address.is_zero(), 'System already initialized');
             assert(!validator_address.is_zero(), 'Invalid validator address');
 
-            set!(world, (SystemManager { system: get_contract_address(), validator_address }));
-            emit!(world, (UpdateValidator { validator_address, update_at: get_block_timestamp() }));
+            world.write_model(@SystemManager { system: get_contract_address(), validator_address });
+            world
+                .emit_event(
+                    @UpdateValidator { validator_address, update_at: get_block_timestamp() }
+                );
         }
 
-        fn update_validator_address(
-            ref world: IWorldDispatcher, validator_address: ContractAddress
-        ) {
-            let system: SystemManager = get!(world, get_contract_address(), (SystemManager));
+        fn update_validator_address(ref self: ContractState, validator_address: ContractAddress) {
+            let mut world = self.world_default();
+            let system: SystemManager = world.read_model(get_contract_address());
             InternalImpl::assert_initialized(system);
 
             assert(!validator_address.is_zero(), 'Invalid validator address');
             assert(system.validator_address != validator_address, 'Same validator address');
 
-            set!(world, (SystemManager { system: get_contract_address(), validator_address }));
-            emit!(world, (UpdateValidator { validator_address, update_at: get_block_timestamp() }));
+            world.write_model(@SystemManager { system: get_contract_address(), validator_address });
+            world
+                .emit_event(
+                    @UpdateValidator { validator_address, update_at: get_block_timestamp() }
+                );
         }
 
         fn claim_end_match_reward(
-            ref world: IWorldDispatcher,
+            ref self: ContractState,
             treasury: u256,
             match_level: u32,
             salt_nonce: u64,
             sign: Array<felt252>
         ) {
-            let system: SystemManager = get!(world, get_contract_address(), (SystemManager));
+            let mut world = self.world_default();
+            let system: SystemManager = world.read_model(get_contract_address());
             InternalImpl::assert_initialized(system);
 
             let player: ContractAddress = get_caller_address();
@@ -124,42 +134,42 @@ mod MetalSlug {
             let message_hash = InternalImpl::compute_message_hash(reward, system.validator_address);
 
             InternalImpl::assert_valid_sign(system.validator_address, message_hash, sign);
-            let validator_sign: ValidatorSignature = get!(
-                world, (get_contract_address(), message_hash), (ValidatorSignature)
-            );
+            let validator_sign: ValidatorSignature = world
+                .read_model((get_contract_address(), message_hash));
             assert(!validator_sign.is_used, 'Sign already used');
 
-            set!(
-                world,
-                (ValidatorSignature {
-                    system: get_contract_address(), msg_hash: message_hash, is_used: true
-                })
-            );
+            world
+                .write_model(
+                    @ValidatorSignature {
+                        system: get_contract_address(), msg_hash: message_hash, is_used: true
+                    }
+                );
 
-            let mut player_detail: PlayerData = get!(world, player, (PlayerData));
+            let mut player_detail: PlayerData = world.read_model(player);
             player_detail.treasury += treasury;
             if match_level > player_detail.highest_match_level {
                 player_detail.highest_match_level = match_level;
             }
 
-            set!(world, (player_detail));
-            emit!(
-                world,
-                (ClaimEndMatchReward {
-                    player, treasury, match_level, claimed_at: get_block_timestamp()
-                })
-            );
+            world.write_model(@player_detail);
+            world
+                .emit_event(
+                    @ClaimEndMatchReward {
+                        player, treasury, match_level, claimed_at: get_block_timestamp()
+                    }
+                );
         }
 
         fn graft_treasure_chest(
-            ref world: IWorldDispatcher,
+            ref self: ContractState,
             chest_address: ContractAddress,
             chest_id: u256,
             amount: u256,
             salt_nonce: u64,
             sign: Array<felt252>
         ) {
-            let system: SystemManager = get!(world, get_contract_address(), (SystemManager));
+            let mut world = self.world_default();
+            let system: SystemManager = world.read_model(get_contract_address());
             InternalImpl::assert_initialized(system);
 
             let player: ContractAddress = get_caller_address();
@@ -171,36 +181,37 @@ mod MetalSlug {
             );
 
             InternalImpl::assert_valid_sign(system.validator_address, message_hash, sign);
-            let validator_sign: ValidatorSignature = get!(
-                world, (get_contract_address(), message_hash), (ValidatorSignature)
-            );
+            let validator_sign: ValidatorSignature = world
+                .read_model((get_contract_address(), message_hash));
             assert(!validator_sign.is_used, 'Sign already used');
 
-            set!(
-                world,
-                (ValidatorSignature {
-                    system: get_contract_address(), msg_hash: message_hash, is_used: true
-                })
-            );
+            world
+                .write_model(
+                    @ValidatorSignature {
+                        system: get_contract_address(), msg_hash: message_hash, is_used: true
+                    }
+                );
 
             let chest_dispatcher = IMetalSlugChestDispatcher { contract_address: chest_address };
             chest_dispatcher.graft_treasure_chest(chest_id, amount, player);
 
-            emit!(
-                world,
-                (GraftTreasureChest {
-                    player, chest_address, chest_id, amount, claimed_at: get_block_timestamp()
-                })
-            );
+            world
+                .emit_event(
+                    @GraftTreasureChest {
+                        player, chest_address, chest_id, amount, claimed_at: get_block_timestamp()
+                    }
+                );
         }
 
-        fn get_system_manager(ref world: IWorldDispatcher) -> SystemManager {
-            let system: SystemManager = get!(world, get_contract_address(), (SystemManager));
+        fn get_system_manager(self: @ContractState) -> SystemManager {
+            let world = self.world_default();
+            let system: SystemManager = world.read_model(get_contract_address());
             system
         }
 
-        fn get_player_data(ref world: IWorldDispatcher, address: ContractAddress) -> PlayerData {
-            let player: PlayerData = get!(world, address, (PlayerData));
+        fn get_player_data(self: @ContractState, address: ContractAddress) -> PlayerData {
+            let world = self.world_default();
+            let player: PlayerData = world.read_model(address);
             player
         }
     }
@@ -287,6 +298,10 @@ mod MetalSlug {
             state = state.update_with(data.hash_struct());
             state = state.update_with(4);
             state.finalize()
+        }
+
+        fn world_default(self: @ContractState) -> dojo::world::WorldStorage {
+            self.world(@"metalslug")
         }
     }
 }
