@@ -38,6 +38,22 @@ trait IMetalSlugImpl<TState> {
     /// - `new_owner` The address of the new owner
     fn transfer_ownership(ref self: TState, new_owner: ContractAddress);
 
+    /// Updates the chest address.
+    ///
+    /// Requirements:
+    ///
+    /// - `chest_address` The address of the treasure chest
+    /// - `is_allowed` The boolean value indicating whether the chest address is allowed or not
+    fn update_chest_address(ref self: TState, chest_address: ContractAddress, is_allowed: bool);
+
+    /// Updates the weapon address.
+    ///
+    /// Requirements:
+    ///
+    /// - `weapon_address` The address of the weapon
+    /// - `is_allowed` The boolean value indicating whether the weapon address is allowed or not
+    fn update_weapon_address(ref self: TState, weapon_address: ContractAddress, is_allowed: bool);
+
     /// Claims the reward at the end of a match, sending the reward to the treasury.
     ///
     /// Requirements:
@@ -81,9 +97,15 @@ trait IMetalSlugImpl<TState> {
     /// - `chest_address` the address of treasure chest
     /// - `chest_id` the id of treasure chest that can be claimed
     /// - `receiver` the address of the player that receives the treasure chest
+    /// - `weapon_address` the address of weapon
     ///
     /// Emits a `OpenTreasureChest` event.
-    fn open_treasure_chest(ref self: TState, chest_address: ContractAddress, chest_id: u256);
+    fn open_treasure_chest(
+        ref self: TState,
+        chest_address: ContractAddress,
+        chest_id: u256,
+        weapon_address: ContractAddress
+    );
 
     /// Returns the owner address
     fn get_owner(self: @TState) -> ContractAddress;

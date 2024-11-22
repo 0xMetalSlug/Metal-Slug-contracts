@@ -10,8 +10,13 @@ mod MetalSlug {
     use metalslug::interfaces::system::IMetalSlugImpl;
     use metalslug::interfaces::account::{AccountABIDispatcher, AccountABIDispatcherTrait};
     use metalslug::interfaces::chest::{IMetalSlugChestDispatcher, IMetalSlugChestDispatcherTrait};
+    use metalslug::interfaces::weapon::{
+        IMetalSlugWeaponDispatcher, IMetalSlugWeaponDispatcherTrait
+    };
     use cartridge_vrf::{Source, IVrfProviderDispatcherTrait, IVrfProviderDispatcher};
-    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
+    use starknet::storage::{
+        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
+    };
     use core::pedersen::PedersenTrait;
     use hash::{HashStateTrait, HashStateExTrait};
     use poseidon::PoseidonTrait;
@@ -42,6 +47,8 @@ mod MetalSlug {
         owner: ContractAddress,
         validator_address: ContractAddress,
         vrf_provider_address: ContractAddress,
+        treasure_chest_addresses: Map::<ContractAddress, bool>,
+        weapon_addresses: Map::<ContractAddress, bool>,
     }
 
     // ============ Structs ============
@@ -106,7 +113,8 @@ mod MetalSlug {
         player: ContractAddress,
         chest_address: ContractAddress,
         chest_id: u256,
-        weapon_id: u256
+        weapon_id: u256,
+        weapon_address: ContractAddress,
     }
 
     // ============ External Functions ============
@@ -172,6 +180,33 @@ mod MetalSlug {
             self.owner.write(new_owner);
         }
 
+        fn update_chest_address(
+            ref self: ContractState, chest_address: ContractAddress, is_allowed: bool
+        ) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            assert(!chest_address.is_zero(), 'Invalid chest address');
+            assert(
+                self.treasure_chest_addresses.entry(chest_address).read() != is_allowed,
+                'Address Already Updated'
+            );
+
+            self.treasure_chest_addresses.entry(chest_address).write(is_allowed);
+        }
+
+        fn update_weapon_address(
+            ref self: ContractState, weapon_address: ContractAddress, is_allowed: bool
+        ) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            assert(!weapon_address.is_zero(), 'Invalid weapon address');
+            assert(
+                self.weapon_addresses.read(weapon_address) != is_allowed, 'Address Already Updated'
+            );
+
+            self.weapon_addresses.write(weapon_address, is_allowed);
+        }
+
         fn claim_end_match_reward(
             ref self: ContractState,
             treasury: u256,
@@ -223,8 +258,9 @@ mod MetalSlug {
             salt_nonce: u64,
             sign: Array<felt252>
         ) {
-            let mut world = self.world_default();
             self.assert_initialized();
+            self.assert_only_allowed_chest(chest_address);
+            let mut world = self.world_default();
 
             let player: ContractAddress = get_caller_address();
             let treasure_chest = TreasureChest {
@@ -257,9 +293,14 @@ mod MetalSlug {
         }
 
         fn open_treasure_chest(
-            ref self: ContractState, chest_address: ContractAddress, chest_id: u256,
+            ref self: ContractState,
+            chest_address: ContractAddress,
+            chest_id: u256,
+            weapon_address: ContractAddress
         ) {
             self.assert_initialized();
+            self.assert_only_allowed_chest(chest_address);
+            self.assert_only_allowed_weapon(weapon_address);
 
             let mut world = self.world_default();
             let player: ContractAddress = get_caller_address();
@@ -275,6 +316,7 @@ mod MetalSlug {
             hash = hash.update_with(random_word);
             hash = hash.update_with(chest_id);
             hash = hash.update_with(player);
+            hash = hash.update_with(weapon_address);
             let random_value: u256 = hash.finalize().into();
             let draw_value: u16 = (random_value % MAXIMUN_CUMULATIVE_VALUE.into() + 1)
                 .try_into()
@@ -291,7 +333,15 @@ mod MetalSlug {
                 weapon_id = 4
             };
 
-            world.emit_event(@OpenTreasureChest { player, chest_address, chest_id, weapon_id });
+            let weapon_dispatcher = IMetalSlugWeaponDispatcher { contract_address: weapon_address };
+            weapon_dispatcher.graft_weapon(weapon_id, 1, player);
+
+            world
+                .emit_event(
+                    @OpenTreasureChest {
+                        player, chest_address, chest_id, weapon_id, weapon_address
+                    }
+                );
         }
 
         fn get_owner(self: @ContractState) -> ContractAddress {
@@ -375,6 +425,19 @@ mod MetalSlug {
 
         fn assert_only_owner(self: @ContractState) {
             assert(self.owner.read() == get_caller_address(), 'Only owner');
+        }
+
+        fn assert_only_allowed_chest(self: @ContractState, chest_address: ContractAddress) {
+            assert(
+                self.treasure_chest_addresses.entry(chest_address).read() == true,
+                'Not allowed chest'
+            );
+        }
+
+        fn assert_only_allowed_weapon(self: @ContractState, weapon_address: ContractAddress) {
+            assert(
+                self.weapon_addresses.entry(weapon_address).read() == true, 'Not allowed weapon'
+            );
         }
 
         fn assert_valid_sign(

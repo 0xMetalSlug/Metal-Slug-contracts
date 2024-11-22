@@ -21,11 +21,11 @@ const provider = new RpcProvider({
 
 const deployer = new Account(provider, address, privateKey);
 
-async function deployChest() {
+async function deployWeapon() {
   const compiledTreasureChestCasm = json.parse(
     fs
       .readFileSync(
-        '../target/dev/metalslug_chest_MetalSlugChest.compiled_contract_class.json'
+        '../target/dev/metalslug_weapon_MetalSlugWeapon.compiled_contract_class.json'
       )
       .toString('ascii')
   );
@@ -33,7 +33,7 @@ async function deployChest() {
   const compiledTreasureChestSierra = json.parse(
     fs
       .readFileSync(
-        '../target/dev/metalslug_chest_MetalSlugChest.contract_class.json'
+        '../target/dev/metalslug_weapon_MetalSlugWeapon.contract_class.json'
       )
       .toString('ascii')
   );
@@ -54,4 +54,4 @@ async function deployChest() {
   console.log(deployContractResponse.deploy.address);
 }
 
-deployChest();
+deployWeapon();

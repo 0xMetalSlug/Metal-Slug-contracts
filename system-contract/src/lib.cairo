@@ -11,4 +11,5 @@ mod interfaces {
     mod account;
     mod system;
     mod chest;
+    mod weapon;
 }

@@ -1,10 +1,10 @@
 #[starknet::contract]
-mod MetalSlugChest {
+mod MetalSlugWeapon {
     use openzeppelin::access::ownable::interface::IOwnable;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc1155::{ERC1155Component, ERC1155HooksEmptyImpl};
     use openzeppelin::access::ownable::OwnableComponent;
-    use metalslug_chest::interface::chest::IMetalSlugChest;
+    use metalslug_weapon::interface::weapon::IMetalSlugWeapon;
     use starknet::{ContractAddress, get_caller_address, get_tx_info};
     use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 
@@ -59,32 +59,25 @@ mod MetalSlugChest {
     }
 
     #[abi(embed_v0)]
-    impl MetalSlugChestImpl of IMetalSlugChest<ContractState> {
+    impl MetalSlugChestImpl of IMetalSlugWeapon<ContractState> {
         fn update_system_address(ref self: ContractState, system_address: ContractAddress) {
             self.ownable.assert_only_owner();
             self.system_addres.write(system_address);
         }
 
-        fn graft_treasure_chest(
-            ref self: ContractState, chest_id: u256, value: u256, receiver: ContractAddress
+        fn graft_weapon(
+            ref self: ContractState, weapon_id: u256, value: u256, receiver: ContractAddress
         ) {
             self.assert_only_owner_or_system();
             self
                 .erc1155
                 .mint_with_acceptance_check(
-                    receiver, chest_id, value, ArrayTrait::<felt252>::new().span()
+                    receiver, weapon_id, value, ArrayTrait::<felt252>::new().span()
                 );
         }
 
         fn get_system_address(self: @ContractState) -> ContractAddress {
             self.system_addres.read()
-        }
-
-        fn open_treasure_chest(ref self: ContractState, chest_id: u256, player: ContractAddress) {
-            self.assert_only_owner_or_system();
-            let balance = self.erc1155.balance_of(player, chest_id);
-            assert(balance > 0, 'Insufficient chest balance');
-            self.erc1155.burn(player, chest_id, 1);
         }
     }
 
