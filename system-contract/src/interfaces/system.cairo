@@ -1,5 +1,4 @@
 use starknet::ContractAddress;
-use metalslug::models::system::SystemManager;
 use metalslug::models::player::PlayerData;
 
 #[starknet::interface]
@@ -8,17 +7,36 @@ trait IMetalSlugImpl<TState> {
     ///
     /// Requirements:
     ///
-    /// - `validator_address` The address of the validator contract to be used for verifying
-    /// actions.
-    fn initialize(ref self: TState, validator_address: ContractAddress);
+    /// - `owner` The address of the owner
+    /// - `validator_address` The address of the validator
+    /// - `vrf_provider_address` The address of the vrf provider
+    fn initialize(
+        ref self: TState,
+        owner: ContractAddress,
+        validator_address: ContractAddress,
+        vrf_provider_address: ContractAddress
+    );
 
     /// Updates the validator address.
     ///
     /// Requirements:
     ///
-    /// - `validator_address` The address of the validator contract to be used for verifying
-    /// actions.
+    /// - `validator_address` The address of the validator contract
     fn update_validator_address(ref self: TState, validator_address: ContractAddress);
+
+    /// Updates the vrf provider address.
+    ///
+    /// Requirements:
+    ///
+    /// - `vrf_provider_address` The address of the vrf provider contract
+    fn update_vrf_provider_address(ref self: TState, vrf_provider_address: ContractAddress);
+
+    /// Transfers ownership of the contract to a new address.
+    ///
+    /// Requirements:
+    ///
+    /// - `new_owner` The address of the new owner
+    fn transfer_ownership(ref self: TState, new_owner: ContractAddress);
 
     /// Claims the reward at the end of a match, sending the reward to the treasury.
     ///
@@ -56,8 +74,25 @@ trait IMetalSlugImpl<TState> {
         sign: Array<felt252>
     );
 
-    /// Returns the system manager.
-    fn get_system_manager(self: @TState) -> SystemManager;
+    /// Opens a treasure chest.
+    ///
+    /// Requirements:
+    ///
+    /// - `chest_address` the address of treasure chest
+    /// - `chest_id` the id of treasure chest that can be claimed
+    /// - `receiver` the address of the player that receives the treasure chest
+    ///
+    /// Emits a `OpenTreasureChest` event.
+    fn open_treasure_chest(ref self: TState, chest_address: ContractAddress, chest_id: u256);
+
+    /// Returns the owner address
+    fn get_owner(self: @TState) -> ContractAddress;
+
+    /// Returns the validator address.
+    fn get_validator(self: @TState) -> ContractAddress;
+
+    /// Returns the vrf provider address.
+    fn get_vrf_provider(self: @TState) -> ContractAddress;
 
     /// Returns the player data.
     ///

@@ -6,6 +6,6 @@ trait IMetalSlugChest<TContractState> {
     fn graft_treasure_chest(
         ref self: TContractState, chest_id: u256, value: u256, receiver: ContractAddress
     );
-    // fn open_treasure_chest(ref self: TContractState, chest_id: u256);
+    fn open_treasure_chest(ref self: TContractState, chest_id: u256, player: ContractAddress);
     fn get_system_address(self: @TContractState) -> ContractAddress;
 }

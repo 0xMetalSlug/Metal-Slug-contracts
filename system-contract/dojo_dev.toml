@@ -1,10 +1,10 @@
 [world]
-name = "Dojo starter"
+name = "MetalSlug Dev"
 description = "The official Dojo Starter guide, the quickest and most streamlined way to get your Dojo Autonomous World up and running. This guide will assist you with the initial setup, from cloning the repository to deploying your world."
 cover_uri = "file://assets/cover.png"
 icon_uri = "file://assets/icon.png"
 website = "https://github.com/dojoengine/dojo-starter"
-seed = "metalslug"
+seed = "metalslug01"
 
 [world.socials]
 x = "https://x.com/ohayo_dojo"
@@ -24,6 +24,3 @@ private_key = "0xc5b2fcab997346f3ea1c00b002ecf6f382c5f9c9659a3894eb783c5320f912"
 
 [writers]
 "metalslug" = ["metalslug-MetalSlug"]
-
-[owners]
-"metalslug-SystemManager" = ["metalslug-MetalSlug"]

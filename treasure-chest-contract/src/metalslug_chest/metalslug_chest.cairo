@@ -1,13 +1,12 @@
 #[starknet::contract]
 mod MetalSlugChest {
-    use core::array::ArrayTrait;
-    use openzeppelin::token::erc1155::erc1155::ERC1155Component::InternalTrait;
     use openzeppelin::access::ownable::interface::IOwnable;
     use openzeppelin::introspection::src5::SRC5Component;
     use openzeppelin::token::erc1155::{ERC1155Component, ERC1155HooksEmptyImpl};
     use openzeppelin::access::ownable::OwnableComponent;
     use metalslug_chest::interface::chest::IMetalSlugChest;
-    use starknet::{ContractAddress, get_caller_address};
+    use starknet::{ContractAddress, get_caller_address, get_tx_info};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 
     component!(path: ERC1155Component, storage: erc1155, event: ERC1155Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
@@ -28,6 +27,7 @@ mod MetalSlugChest {
     #[storage]
     struct Storage {
         system_addres: ContractAddress,
+        vrf_provider_address: ContractAddress,
         #[substorage(v0)]
         erc1155: ERC1155Component::Storage,
         #[substorage(v0)]
@@ -52,11 +52,13 @@ mod MetalSlugChest {
         ref self: ContractState,
         token_uri: ByteArray,
         owner: ContractAddress,
-        system_address: ContractAddress
+        system_address: ContractAddress,
+        vrf_provider_address: ContractAddress
     ) {
         self.erc1155.initializer(token_uri);
         self.ownable.initializer(owner);
         self.system_addres.write(system_address);
+        self.vrf_provider_address.write(vrf_provider_address);
     }
 
     #[abi(embed_v0)]
@@ -79,6 +81,13 @@ mod MetalSlugChest {
 
         fn get_system_address(self: @ContractState) -> ContractAddress {
             self.system_addres.read()
+        }
+
+        fn open_treasure_chest(ref self: ContractState, chest_id: u256, player: ContractAddress) {
+            self.assert_only_owner_or_system();
+            let balance = self.erc1155.balance_of(player, chest_id);
+            assert(balance > 0, 'Insufficient chest balance');
+            self.erc1155.burn(player, chest_id, 1);
         }
     }
 

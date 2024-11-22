@@ -9,3 +9,5 @@ Cargo.lock
 
 # Ignore history files from the shell
 *.history
+
+manifest_dev.json
