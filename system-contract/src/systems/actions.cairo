@@ -322,18 +322,23 @@ mod MetalSlug {
                 .try_into()
                 .unwrap();
             // 70%, 20%, 9%, 1% chance to get token id 1, 2, 3, 4 represpectively from chest
-            let mut weapon_id = 0;
+            let mut tier = 0;
             if draw_value <= 7_000 {
-                weapon_id = 1;
+                tier = 1;
             } else if draw_value <= 9_000 {
-                weapon_id = 2;
+                tier = 2;
             } else if draw_value <= 9_900 {
-                weapon_id = 3;
+                tier = 3;
             } else {
-                weapon_id = 4
+                tier = 4
             };
 
             let weapon_dispatcher = IMetalSlugWeaponDispatcher { contract_address: weapon_address };
+            let weapons = weapon_dispatcher.get_weapons_from_tier(tier);
+
+            let weapon_index = draw_value.into() % weapons.len();
+            let weapon_id = *weapons.at(weapon_index);
+
             weapon_dispatcher.graft_weapon(weapon_id, 1, player);
 
             world
