@@ -1,7 +1,7 @@
 #[starknet::contract]
 mod MetalSlugWeapon {
     use openzeppelin::introspection::src5::SRC5Component;
-    use openzeppelin::token::erc1155::{ERC1155Component, ERC1155HooksEmptyImpl};
+    use openzeppelin::token::erc721::{ERC721Component, ERC721HooksEmptyImpl};
     use openzeppelin::access::ownable::OwnableComponent;
     use metalslug_weapon::interface::weapon::IMetalSlugWeapon;
     use starknet::{ContractAddress, get_caller_address, get_tx_info};
@@ -10,7 +10,7 @@ mod MetalSlugWeapon {
         MutableVecTrait
     };
 
-    component!(path: ERC1155Component, storage: erc1155, event: ERC1155Event);
+    component!(path: ERC721Component, storage: erc721, event: ERC721Event);
     component!(path: SRC5Component, storage: src5, event: SRC5Event);
     component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
 
@@ -21,19 +21,17 @@ mod MetalSlugWeapon {
         OwnableComponent::OwnableCamelOnlyImpl<ContractState>;
     impl OwnableInternalImpl = OwnableComponent::InternalImpl<ContractState>;
 
-    // ERC1155 Mixin
+    // ERC721 Mixin
     #[abi(embed_v0)]
-    impl ERC1155MixinImpl = ERC1155Component::ERC1155MixinImpl<ContractState>;
-    impl ERC1155InternalImpl = ERC1155Component::InternalImpl<ContractState>;
+    impl ERC721MixinImpl = ERC721Component::ERC721MixinImpl<ContractState>;
+    impl ERC721InternalImpl = ERC721Component::InternalImpl<ContractState>;
 
     #[storage]
     struct Storage {
         system_addres: ContractAddress,
-        tier: Map::<u256, Vec<u256>>,
-        weapon_tier: Map::<u256, u256>,
-        weapon_counter: Map::<u256, u256>,
+        new_token_id: u256,
         #[substorage(v0)]
-        erc1155: ERC1155Component::Storage,
+        erc721: ERC721Component::Storage,
         #[substorage(v0)]
         src5: SRC5Component::Storage,
         #[substorage(v0)]
@@ -44,7 +42,7 @@ mod MetalSlugWeapon {
     #[derive(Drop, starknet::Event)]
     enum Event {
         #[flat]
-        ERC1155Event: ERC1155Component::Event,
+        ERC721Event: ERC721Component::Event,
         #[flat]
         SRC5Event: SRC5Component::Event,
         #[flat]
@@ -54,13 +52,16 @@ mod MetalSlugWeapon {
     #[constructor]
     fn constructor(
         ref self: ContractState,
+        name: ByteArray,
+        symbol: ByteArray,
         token_uri: ByteArray,
         owner: ContractAddress,
         system_address: ContractAddress,
     ) {
-        self.erc1155.initializer(token_uri);
+        self.erc721.initializer(name, symbol, token_uri);
         self.ownable.initializer(owner);
         self.system_addres.write(system_address);
+        self.new_token_id.write(1);
     }
 
     #[abi(embed_v0)]
@@ -70,82 +71,22 @@ mod MetalSlugWeapon {
             self.system_addres.write(system_address);
         }
 
-        fn graft_weapon(
-            ref self: ContractState, weapon_id: u256, value: u256, receiver: ContractAddress
-        ) {
+        fn graft_weapon(ref self: ContractState, receiver: ContractAddress) -> u256 {
             self.assert_only_owner_or_system();
-            assert(self.get_weapon_tier(weapon_id) != 0, 'Weapon not classified');
+            let token_id = self.get_new_token_id();
 
-            self
-                .weapon_counter
-                .entry(weapon_id)
-                .write(self.weapon_counter.entry(weapon_id).read() + value);
-
-            self
-                .erc1155
-                .mint_with_acceptance_check(
-                    receiver, weapon_id, value, ArrayTrait::<felt252>::new().span()
-                );
+            self.new_token_id.write(token_id + 1);
+            self.erc721.mint(receiver, token_id);
+            token_id
         }
 
-        fn append_weapons(ref self: ContractState, tier: u256, weapon_ids: Array<u256>) {
-            self.ownable.assert_only_owner();
-            for weapon_id in weapon_ids
-                .span() {
-                    assert(*weapon_id != 0, 'Invalid weapon id');
-                    self.assert_not_duplicate_weapon(*weapon_id);
-                    self.weapon_tier.entry(*weapon_id).write(tier);
-                    self.tier.entry(tier).append().write(*weapon_id);
-                }
-        }
-
-        fn remove_weapon(ref self: ContractState, weapon_id: u256) {
-            self.ownable.assert_only_owner();
-            let weapon_counter = self.weapon_counter.entry(weapon_id).read();
-            assert(weapon_counter == 0, 'Weapon already minted');
-
-            let tier = self.weapon_tier.entry(weapon_id).read();
-            assert(tier != 0, 'Weapon not classified');
-
-            self.weapon_tier.entry(weapon_id).write(0);
-
-            for i in 0
-                ..self
-                    .tier
-                    .entry(tier)
-                    .len() {
-                        if self.tier.entry(tier).at(i).read() == weapon_id {
-                            self.tier.entry(tier).at(i).write(0);
-                            break;
-                        }
-                    }
-        }
-
-        fn get_weapons_from_tier(self: @ContractState, tier: u256) -> Span<u256> {
-            let mut weapon_ids = array![];
-            for i in 0
-                ..self
-                    .tier
-                    .entry(tier)
-                    .len() {
-                        let weapon_id = self.tier.entry(tier).at(i).read();
-                        if weapon_id != 0 {
-                            weapon_ids.append(weapon_id);
-                        }
-                    };
-            weapon_ids.span()
-        }
-
-        fn get_weapon_tier(self: @ContractState, weapon_id: u256) -> u256 {
-            self.weapon_tier.entry(weapon_id).read()
-        }
 
         fn get_system_address(self: @ContractState) -> ContractAddress {
             self.system_addres.read()
         }
 
-        fn get_weapon_counter(self: @ContractState, weapon_id: u256) -> u256 {
-            self.weapon_counter.entry(weapon_id).read()
+        fn get_new_token_id(self: @ContractState) -> u256 {
+            self.new_token_id.read()
         }
     }
 
@@ -156,14 +97,6 @@ mod MetalSlugWeapon {
             assert(
                 caller == self.ownable.owner() || caller == self.get_system_address(),
                 'Only owner or system'
-            );
-        }
-
-        fn assert_not_duplicate_weapon(self: @ContractState, weapon_id: u256) {
-            assert!(
-                self.weapon_tier.entry(weapon_id).read() == 0,
-                "Weapon id {} already classified",
-                weapon_id
             );
         }
     }

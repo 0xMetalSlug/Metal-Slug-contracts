@@ -11,3 +11,4 @@ Cargo.lock
 *.history
 
 manifest_dev.json
+scripts/

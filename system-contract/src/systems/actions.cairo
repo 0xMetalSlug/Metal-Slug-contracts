@@ -6,7 +6,8 @@ mod MetalSlug {
     };
     use array::{Array, ArrayTrait};
     use metalslug::models::system::ValidatorSignature;
-    use metalslug::models::player::PlayerData;
+    use metalslug::models::player::{PlayerData, EquippedWeapon};
+    use metalslug::models::equipment::{EquipmentType, EquipmentRarity, WeaponDefine};
     use metalslug::interfaces::system::IMetalSlugImpl;
     use metalslug::interfaces::account::{AccountABIDispatcher, AccountABIDispatcherTrait};
     use metalslug::interfaces::chest::{IMetalSlugChestDispatcher, IMetalSlugChestDispatcherTrait};
@@ -15,7 +16,8 @@ mod MetalSlug {
     };
     use cartridge_vrf::{Source, IVrfProviderDispatcherTrait, IVrfProviderDispatcher};
     use starknet::storage::{
-        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry
+        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry, Vec, VecTrait,
+        MutableVecTrait
     };
     use core::pedersen::PedersenTrait;
     use hash::{HashStateTrait, HashStateExTrait};
@@ -25,6 +27,8 @@ mod MetalSlug {
     use dojo::event::EventStorage;
 
     const MAXIMUN_CUMULATIVE_VALUE: u16 = 10_000;
+    const MAXIMUN_WEAPON_SLOT: u8 = 3;
+
     const STARKNET_DOMAIN_TYPE_HASH: felt252 =
         selector!("StarkNetDomain(name:felt,version:felt,chainId:felt)");
 
@@ -40,6 +44,7 @@ mod MetalSlug {
             "TreasureChest(player:felt,chest_address:felt,chest_id:u256,amount:u256,salt_nonce:felt)u256(low:felt,high:felt)"
         );
 
+
     // ============ Storage ============
     #[storage]
     struct Storage {
@@ -48,7 +53,13 @@ mod MetalSlug {
         validator_address: ContractAddress,
         vrf_provider_address: ContractAddress,
         treasure_chest_addresses: Map::<ContractAddress, bool>,
-        weapon_addresses: Map::<ContractAddress, bool>,
+        equipment_addresses: Map::<ContractAddress, bool>,
+        // mapping (equipment address, rarity) => equipment ids
+        equipment_ids: Map::<ContractAddress, Vec<u256>>,
+        // mapping (equipment address, equipment id) => bool
+        equipment_id: Map::<(ContractAddress, u256), bool>,
+        // mapping rarity => (min, max) bonus values
+        rarity_bonus: Map::<felt252, (u16, u16)>,
     }
 
     // ============ Structs ============
@@ -113,8 +124,22 @@ mod MetalSlug {
         player: ContractAddress,
         chest_address: ContractAddress,
         chest_id: u256,
-        weapon_id: u256,
-        weapon_address: ContractAddress,
+        equipment_address: ContractAddress,
+        token_id: u256,
+        equipment_type: felt252,
+        equipment_rarity: felt252,
+        equipment_id: u256,
+    }
+
+    #[derive(Drop, Copy, Serde)]
+    #[dojo::event]
+    struct GraftWeaponDefine {
+        #[key]
+        player: ContractAddress,
+        #[key]
+        equipment_address: ContractAddress,
+        token_id: u256,
+        weapon_define: WeaponDefine,
     }
 
     // ============ External Functions ============
@@ -180,6 +205,16 @@ mod MetalSlug {
             self.owner.write(new_owner);
         }
 
+        fn update_rarity_bonus(
+            ref self: ContractState, rarity: felt252, min_bonus: u16, max_bonus: u16
+        ) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            self.assert_valid_rarity(rarity);
+            assert(min_bonus <= max_bonus, 'Invalid bonus values');
+            self.rarity_bonus.entry(rarity).write((min_bonus, max_bonus));
+        }
+
         fn update_chest_address(
             ref self: ContractState, chest_address: ContractAddress, is_allowed: bool
         ) {
@@ -194,17 +229,61 @@ mod MetalSlug {
             self.treasure_chest_addresses.entry(chest_address).write(is_allowed);
         }
 
-        fn update_weapon_address(
-            ref self: ContractState, weapon_address: ContractAddress, is_allowed: bool
+        fn update_equipment_address(
+            ref self: ContractState, equipment_address: ContractAddress, is_allowed: bool
         ) {
             self.assert_initialized();
             self.assert_only_owner();
-            assert(!weapon_address.is_zero(), 'Invalid weapon address');
+            assert(!equipment_address.is_zero(), 'Invalid equipment address');
             assert(
-                self.weapon_addresses.read(weapon_address) != is_allowed, 'Address Already Updated'
+                self.equipment_addresses.read(equipment_address) != is_allowed,
+                'Address Already Updated'
             );
 
-            self.weapon_addresses.write(weapon_address, is_allowed);
+            self.equipment_addresses.write(equipment_address, is_allowed);
+        }
+
+        fn append_equipment_ids(
+            ref self: ContractState, equipment_address: ContractAddress, equipment_ids: Array<u256>
+        ) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            self.assert_only_allowed_equipment_address(equipment_address);
+
+            for equipment_id in equipment_ids
+                .span() {
+                    self.assert_not_duplicate_equipment_id(equipment_address, *equipment_id);
+                    self.equipment_id.entry((equipment_address, *equipment_id)).write(true);
+                    self.equipment_ids.entry(equipment_address).append().write(*equipment_id);
+                }
+        }
+
+        fn remove_equipment_id(
+            ref self: ContractState, equipment_address: ContractAddress, equipment_id: u256
+        ) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            self.assert_only_allowed_equipment_address(equipment_address);
+            assert(
+                self.equipment_id.entry((equipment_address, equipment_id)).read() == true,
+                'Equipment id not exists'
+            );
+            self.equipment_id.entry((equipment_address, equipment_id)).write(false);
+
+            for i in 0
+                ..self
+                    .equipment_ids
+                    .entry(equipment_address)
+                    .len() {
+                        if self
+                            .equipment_ids
+                            .entry(equipment_address)
+                            .at(i)
+                            .read() == equipment_id {
+                            self.equipment_ids.entry(equipment_address).at(i).write(0);
+                            break;
+                        }
+                    }
         }
 
         fn claim_end_match_reward(
@@ -296,11 +375,11 @@ mod MetalSlug {
             ref self: ContractState,
             chest_address: ContractAddress,
             chest_id: u256,
-            weapon_address: ContractAddress
+            equipment_address: ContractAddress
         ) {
             self.assert_initialized();
             self.assert_only_allowed_chest(chest_address);
-            self.assert_only_allowed_weapon(weapon_address);
+            self.assert_only_allowed_equipment_address(equipment_address);
 
             let mut world = self.world_default();
             let player: ContractAddress = get_caller_address();
@@ -316,35 +395,67 @@ mod MetalSlug {
             hash = hash.update_with(random_word);
             hash = hash.update_with(chest_id);
             hash = hash.update_with(player);
-            hash = hash.update_with(weapon_address);
+            hash = hash.update_with(equipment_address);
             let random_value: u256 = hash.finalize().into();
             let draw_value: u16 = (random_value % MAXIMUN_CUMULATIVE_VALUE.into() + 1)
                 .try_into()
                 .unwrap();
-            // 70%, 20%, 9%, 1% chance to get token id 1, 2, 3, 4 represpectively from chest
-            let mut tier = 0;
+            // 70%, 20%, 9%, 1% chance to get rarity common, greate, rare, epic represpectively from
+            // chest
+            let mut rarity = '';
             if draw_value <= 7_000 {
-                tier = 1;
+                rarity = EquipmentRarity::Common.into();
             } else if draw_value <= 9_000 {
-                tier = 2;
+                rarity = EquipmentRarity::Great.into();
             } else if draw_value <= 9_900 {
-                tier = 3;
+                rarity = EquipmentRarity::Rare.into();
             } else {
-                tier = 4
+                rarity = EquipmentRarity::Epic.into();
             };
 
-            let weapon_dispatcher = IMetalSlugWeaponDispatcher { contract_address: weapon_address };
-            let weapons = weapon_dispatcher.get_weapons_from_tier(tier);
+            let (min_bonus, max_bonus): (u16, u16) = self.rarity_bonus.entry(rarity).read();
+            let equipment_ids = self.get_equipment_ids(equipment_address);
+            let equipment_index: u32 = (random_value.into() % equipment_ids.len().into())
+                .try_into()
+                .unwrap();
+            let equipment_id = *equipment_ids.at(equipment_index.into());
+            let equipment_type = EquipmentType::Weapon.into();
+            let mut token_id: u256 = 0;
+            if equipment_type == EquipmentType::Weapon.into() {
+                let weapon_define = WeaponDefine {
+                    bonusBulletDamage: self
+                        .cumpute_bonus_value(random_value, min_bonus, max_bonus, 0),
+                    bonusAttackSpeed: self
+                        .cumpute_bonus_value(random_value, min_bonus, max_bonus, 1),
+                    bonusMagazineSize: self
+                        .cumpute_bonus_value(random_value, min_bonus, max_bonus, 2),
+                    bonusReloadSpeed: self
+                        .cumpute_bonus_value(random_value, min_bonus, max_bonus, 3),
+                    bonusCritRate: self.cumpute_bonus_value(random_value, min_bonus, max_bonus, 4),
+                    bonusCritDamage: self.cumpute_bonus_value(random_value, min_bonus, max_bonus, 5)
+                };
+                let weapon_dispatcher = IMetalSlugWeaponDispatcher {
+                    contract_address: equipment_address
+                };
+                token_id = weapon_dispatcher.graft_weapon(player);
 
-            let weapon_index = draw_value.into() % weapons.len();
-            let weapon_id = *weapons.at(weapon_index);
-
-            weapon_dispatcher.graft_weapon(weapon_id, 1, player);
+                world
+                    .emit_event(
+                        @GraftWeaponDefine { player, equipment_address, token_id, weapon_define }
+                    );
+            }
 
             world
                 .emit_event(
                     @OpenTreasureChest {
-                        player, chest_address, chest_id, weapon_id, weapon_address
+                        player,
+                        chest_address,
+                        chest_id,
+                        equipment_address,
+                        token_id,
+                        equipment_type,
+                        equipment_rarity: rarity,
+                        equipment_id
                     }
                 );
         }
@@ -365,6 +476,29 @@ mod MetalSlug {
             let world = self.world_default();
             let player: PlayerData = world.read_model(address);
             player
+        }
+
+        fn get_rarity_bonus(self: @ContractState, rarity: felt252) -> (u16, u16) {
+            self.assert_valid_rarity(rarity);
+            self.rarity_bonus.entry(rarity).read()
+        }
+
+        fn get_equipment_ids(
+            self: @ContractState, equipment_address: ContractAddress
+        ) -> Span<u256> {
+            let mut equipment_ids = array![];
+
+            for i in 0
+                ..self
+                    .equipment_ids
+                    .entry(equipment_address)
+                    .len() {
+                        let equipment_id = self.equipment_ids.entry(equipment_address).at(i).read();
+                        if equipment_id != 0 {
+                            equipment_ids.append(equipment_id);
+                        }
+                    };
+            equipment_ids.span()
         }
     }
 
@@ -439,9 +573,34 @@ mod MetalSlug {
             );
         }
 
-        fn assert_only_allowed_weapon(self: @ContractState, weapon_address: ContractAddress) {
+        fn assert_only_allowed_equipment_address(
+            self: @ContractState, equipment_address: ContractAddress
+        ) {
             assert(
-                self.weapon_addresses.entry(weapon_address).read() == true, 'Not allowed weapon'
+                self.equipment_addresses.entry(equipment_address).read() == true,
+                'Not allowed equipment'
+            );
+        }
+
+        fn assert_valid_rarity(self: @ContractState, rarity: felt252) {
+            let mut is_valid = false;
+            if rarity == EquipmentRarity::Common.into()
+                || rarity == EquipmentRarity::Great.into()
+                || rarity == EquipmentRarity::Rare.into()
+                || rarity == EquipmentRarity::Epic.into()
+                || rarity == EquipmentRarity::Legendary.into()
+                || rarity == EquipmentRarity::Mythical.into() {
+                is_valid = true;
+            }
+            assert(is_valid, 'Invalid rarity');
+        }
+
+        fn assert_not_duplicate_equipment_id(
+            self: @ContractState, equipment_address: ContractAddress, equipment_id: u256
+        ) {
+            assert(
+                self.equipment_id.entry((equipment_address, equipment_id)).read() == false,
+                'Equipment id already exists'
             );
         }
 
@@ -470,6 +629,20 @@ mod MetalSlug {
             state = state.update_with(data.hash_struct());
             state = state.update_with(4);
             state.finalize()
+        }
+
+        fn cumpute_bonus_value(
+            self: @ContractState, seed: u256, min: u16, max: u16, salt_nonce: u64
+        ) -> u16 {
+            let mut state = PoseidonTrait::new();
+            state = state.update_with(seed);
+            state = state.update_with(salt_nonce);
+            state = state.update_with(min);
+            state = state.update_with(max);
+            state = state.update_with(get_block_timestamp());
+            let random_value: u256 = state.finalize().into();
+
+            min + (random_value % (max - min + 1).into()).try_into().unwrap()
         }
 
         fn world_default(self: @ContractState) -> dojo::world::WorldStorage {

@@ -5,6 +5,7 @@ mod systems {
 mod models {
     mod player;
     mod system;
+    mod equipment;
 }
 
 mod interfaces {

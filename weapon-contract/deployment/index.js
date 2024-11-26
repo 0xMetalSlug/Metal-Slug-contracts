@@ -41,10 +41,12 @@ async function deployWeapon() {
 
   const contractCallData = new CallData(compiledTreasureChestSierra.abi);
   const constructorCalldata = contractCallData.compile('constructor', {
+    name: 'Metal Slug Weapon',
+    symbol: 'MSW',
     token_uri: '',
     owner: address,
     system_address:
-      '0xd0078818d18cbcd4a4bb59b20f11f590cd2492ef948c2de14e29704e2a01d1',
+      '0x4e7fbde9052123a42c9b9e2eab87d24bca1634088b715912df73a3c1b6fc4e4',
   });
 
   const deployContractResponse = await deployer.declareAndDeploy({
@@ -53,73 +55,6 @@ async function deployWeapon() {
     constructorCalldata,
   });
   console.log(deployContractResponse.deploy.address);
-} // 0x1fe67c3d66b6dfaa7831b659c69727bd5ee69db2626bbca6186e2bc3567bdcc
+} // 0x460b03a1cdd1fea6ea53f3098c1753397ef76bbcd3fab0c10706d9ef50ef7af
 
-async function appendWeapon() {
-  const { transaction_hash } = await deployer.execute([
-    {
-      contractAddress:
-        '0x1fe67c3d66b6dfaa7831b659c69727bd5ee69db2626bbca6186e2bc3567bdcc',
-      entrypoint: 'append_weapons',
-      calldata: CallData.compile({
-        tier: uint256.bnToUint256(1),
-        weapon_ids: [
-          uint256.bnToUint256(1),
-          uint256.bnToUint256(2),
-          uint256.bnToUint256(3),
-          uint256.bnToUint256(4),
-          uint256.bnToUint256(5),
-        ],
-      }),
-    },
-    {
-      contractAddress:
-        '0x1fe67c3d66b6dfaa7831b659c69727bd5ee69db2626bbca6186e2bc3567bdcc',
-      entrypoint: 'append_weapons',
-      calldata: CallData.compile({
-        tier: uint256.bnToUint256(2),
-        weapon_ids: [
-          uint256.bnToUint256(6),
-          uint256.bnToUint256(7),
-          uint256.bnToUint256(8),
-          uint256.bnToUint256(9),
-          uint256.bnToUint256(10),
-        ],
-      }),
-    },
-    {
-      contractAddress:
-        '0x1fe67c3d66b6dfaa7831b659c69727bd5ee69db2626bbca6186e2bc3567bdcc',
-      entrypoint: 'append_weapons',
-      calldata: CallData.compile({
-        tier: uint256.bnToUint256(3),
-        weapon_ids: [
-          uint256.bnToUint256(11),
-          uint256.bnToUint256(12),
-          uint256.bnToUint256(13),
-          uint256.bnToUint256(14),
-          uint256.bnToUint256(15),
-        ],
-      }),
-    },
-    {
-      contractAddress:
-        '0x1fe67c3d66b6dfaa7831b659c69727bd5ee69db2626bbca6186e2bc3567bdcc',
-      entrypoint: 'append_weapons',
-      calldata: CallData.compile({
-        tier: uint256.bnToUint256(4),
-        weapon_ids: [
-          uint256.bnToUint256(16),
-          uint256.bnToUint256(17),
-          uint256.bnToUint256(18),
-          uint256.bnToUint256(19),
-          uint256.bnToUint256(20),
-        ],
-      }),
-    },
-  ]);
-
-  console.log(transaction_hash);
-}
-
-appendWeapon();
+deployWeapon();

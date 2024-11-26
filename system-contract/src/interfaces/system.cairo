@@ -38,6 +38,15 @@ trait IMetalSlugImpl<TState> {
     /// - `new_owner` The address of the new owner
     fn transfer_ownership(ref self: TState, new_owner: ContractAddress);
 
+    /// Updates the rarity bonus.
+    ///
+    /// Requirements:
+    ///
+    /// - `rarity` The rarity of the equipment
+    /// - `min_bonus` The minimum bonus value
+    /// - `max_bonus` The maximum bonus value
+    fn update_rarity_bonus(ref self: TState, rarity: felt252, min_bonus: u16, max_bonus: u16);
+
     /// Updates the chest address.
     ///
     /// Requirements:
@@ -46,13 +55,48 @@ trait IMetalSlugImpl<TState> {
     /// - `is_allowed` The boolean value indicating whether the chest address is allowed or not
     fn update_chest_address(ref self: TState, chest_address: ContractAddress, is_allowed: bool);
 
-    /// Updates the weapon address.
+    /// Updates the equipment address.
     ///
     /// Requirements:
     ///
-    /// - `weapon_address` The address of the weapon
-    /// - `is_allowed` The boolean value indicating whether the weapon address is allowed or not
-    fn update_weapon_address(ref self: TState, weapon_address: ContractAddress, is_allowed: bool);
+    /// - `equipment_address` The address of the equipment
+    /// - `is_allowed` The boolean value indicating whether the equipment address is allowed or not
+    fn update_equipment_address(
+        ref self: TState, equipment_address: ContractAddress, is_allowed: bool
+    );
+
+    /// Appends new equipment ids.
+    ///
+    /// Requirements:
+    ///
+    /// - `equipment_address` The address of the equipment
+    /// - `equipment_ids` The array of equipment ids
+    fn append_equipment_ids(
+        ref self: TState, equipment_address: ContractAddress, equipment_ids: Array<u256>
+    );
+
+    /// Removes equipment id.
+    ///
+    /// Requirements:
+    ///
+    /// - `equipment_address` The address of the equipment
+    /// - `equipment_id` The id of the equipment
+    fn remove_equipment_id(
+        ref self: TState, equipment_address: ContractAddress, equipment_id: u256
+    );
+
+    /// Equips a weapon.
+    ///
+    /// Requirements:
+    ///
+    /// - `weapon_slot` The slot where the weapon is equipped.
+    /// - `weapon_id` The id of the weapon.
+    /// - `weapon_address` The address of the weapon.
+    ///
+    /// Emits a `EquipWeapon` event.
+    // fn equip_weapon(
+    //     ref self: TState, weapon_slot: u8, weapon_id: u256, weapon_address: ContractAddress
+    // );
 
     /// Claims the reward at the end of a match, sending the reward to the treasury.
     ///
@@ -97,14 +141,14 @@ trait IMetalSlugImpl<TState> {
     /// - `chest_address` the address of treasure chest
     /// - `chest_id` the id of treasure chest that can be claimed
     /// - `receiver` the address of the player that receives the treasure chest
-    /// - `weapon_address` the address of weapon
+    /// - `equipment_address` the address of equipment
     ///
     /// Emits a `OpenTreasureChest` event.
     fn open_treasure_chest(
         ref self: TState,
         chest_address: ContractAddress,
         chest_id: u256,
-        weapon_address: ContractAddress
+        equipment_address: ContractAddress
     );
 
     /// Returns the owner address
@@ -122,4 +166,13 @@ trait IMetalSlugImpl<TState> {
     ///
     /// - `address` The address of the player.
     fn get_player_data(self: @TState, address: ContractAddress) -> PlayerData;
+
+    /// Return rarity bonus
+    /// 
+    /// Requirements:
+    /// 
+    /// - `rarity` the type of rarity
+    fn get_rarity_bonus(self: @TState, rarity: felt252) -> (u16, u16);
+
+    fn get_equipment_ids(self: @TState, equipment_address: ContractAddress) -> Span<u256>;
 }
