@@ -113,6 +113,18 @@ trait IMetalSlugImpl<TState> {
         ref self: TState, treasury: u256, match_level: u32, salt_nonce: u64, sign: Array<felt252>
     );
 
+    /// Claims points.
+    ///
+    /// Requirements:
+    ///
+    /// - `points` The amount of points that is claimed.
+    /// - `salt_nonce` The salt nonce used to generate the signature.
+    /// - `sign` represents the cryptographic signature of validator to validate the points
+    /// claim and not ues twice.
+    ///
+    /// Emits a `ClaimPoints` event.
+    fn claim_points(ref self: TState, points: u256, salt_nonce: u64, sign: Array<felt252>);
+
     /// Grafts a treasure chest by verifying a signature.
     ///
     /// Requirements:
@@ -168,9 +180,9 @@ trait IMetalSlugImpl<TState> {
     fn get_player_data(self: @TState, address: ContractAddress) -> PlayerData;
 
     /// Return rarity bonus
-    /// 
+    ///
     /// Requirements:
-    /// 
+    ///
     /// - `rarity` the type of rarity
     fn get_rarity_bonus(self: @TState, rarity: felt252) -> (u16, u16);
 

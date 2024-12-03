@@ -12,11 +12,11 @@ spawn = "sozo execute metalslug-actions spawn --wait"    # scarb run spawn
 move = "sozo execute metalslug-actions move -c 1 --wait" # scarb run move
 
 [dependencies]
-dojo = { git = "https://github.com/dojoengine/dojo", tag = "v1.0.1" }
+dojo = { git = "https://github.com/dojoengine/dojo", tag = "v1.0.2" }
 cartridge_vrf = { git = "https://github.com/cartridge-gg/vrf.git" }
 
 [[target.starknet-contract]]
 build-external-contracts = ["dojo::world::world_contract::world"]
 
 [dev-dependencies]
-dojo_cairo_test = { git = "https://github.com/dojoengine/dojo", tag = "v1.0.1" }
+dojo_cairo_test = { git = "https://github.com/dojoengine/dojo", tag = "v1.0.2" }

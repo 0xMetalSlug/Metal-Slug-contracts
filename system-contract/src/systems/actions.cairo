@@ -44,6 +44,9 @@ mod MetalSlug {
             "TreasureChest(player:felt,chest_address:felt,chest_id:u256,amount:u256,salt_nonce:felt)u256(low:felt,high:felt)"
         );
 
+    const POINTS_TYPE_HASH: felt252 =
+        selector!("Points(player:felt,point:u256,salt_nonce:felt)u256(low:felt,high:felt)");
+
 
     // ============ Storage ============
     #[storage]
@@ -87,6 +90,13 @@ mod MetalSlug {
         salt_nonce: u64,
     }
 
+    #[derive(Drop, Copy, Hash)]
+    struct Points {
+        player: ContractAddress,
+        point: u256,
+        salt_nonce: u64,
+    }
+
     // ============ Events ============
     #[derive(Copy, Drop, Serde)]
     #[dojo::event]
@@ -103,6 +113,15 @@ mod MetalSlug {
         player: ContractAddress,
         treasury: u256,
         match_level: u32,
+        claimed_at: u64,
+    }
+
+    #[derive(Drop, Copy, Serde)]
+    #[dojo::event]
+    struct ClaimPoints {
+        #[key]
+        player: ContractAddress,
+        points: u256,
         claimed_at: u64,
     }
 
@@ -329,6 +348,36 @@ mod MetalSlug {
                 );
         }
 
+        fn claim_points(
+            ref self: ContractState, points: u256, salt_nonce: u64, sign: Array<felt252>
+        ) {
+            self.assert_initialized();
+            let mut world = self.world_default();
+
+            let player: ContractAddress = get_caller_address();
+
+            let reward = Points { player, point: points, salt_nonce };
+            let validator_address = self.validator_address.read();
+            let message_hash = self.compute_message_hash(reward, validator_address);
+
+            self.assert_valid_sign(validator_address, message_hash, sign);
+            let validator_sign: ValidatorSignature = world
+                .read_model((get_contract_address(), message_hash));
+            assert(!validator_sign.is_used, 'Sign already used');
+
+            world
+                .write_model(
+                    @ValidatorSignature {
+                        system: get_contract_address(), msg_hash: message_hash, is_used: true
+                    }
+                );
+
+            let mut player_detail: PlayerData = world.read_model(player);
+            player_detail.points += points;
+            world.write_model(@player_detail);
+            world.emit_event(@ClaimPoints { player, points, claimed_at: get_block_timestamp() });
+        }
+
         fn graft_treasure_chest(
             ref self: ContractState,
             chest_address: ContractAddress,
@@ -393,9 +442,11 @@ mod MetalSlug {
 
             let mut hash = PoseidonTrait::new();
             hash = hash.update_with(random_word);
+            hash = hash.update_with(chest_address);
             hash = hash.update_with(chest_id);
             hash = hash.update_with(player);
             hash = hash.update_with(equipment_address);
+            hash = hash.update_with(get_block_timestamp());
             let random_value: u256 = hash.finalize().into();
             let draw_value: u16 = (random_value % MAXIMUN_CUMULATIVE_VALUE.into() + 1)
                 .try_into()
@@ -550,6 +601,18 @@ mod MetalSlug {
             state = state.update_with(self.amount.hash_struct());
             state = state.update_with(*self.salt_nonce);
             state = state.update_with(6);
+            state.finalize()
+        }
+    }
+
+    impl StructHashPoint of IStructHash<Points> {
+        fn hash_struct(self: @Points) -> felt252 {
+            let mut state = PedersenTrait::new(0);
+            state = state.update_with(POINTS_TYPE_HASH);
+            state = state.update_with(*self.player);
+            state = state.update_with(self.point.hash_struct());
+            state = state.update_with(*self.salt_nonce);
+            state = state.update_with(4);
             state.finalize()
         }
     }

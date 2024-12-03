@@ -9,6 +9,7 @@ pub struct PlayerData {
     highest_match_level: u32,
     equipped_weapon: ContractAddress,
     equipped_weapons: Array<EquippedWeapon>,
+    points: u256,
 }
 
 #[derive(Drop, Copy, Serde, Introspect)]
