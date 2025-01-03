@@ -1,5 +1,6 @@
 use starknet::ContractAddress;
 use metalslug::models::player::PlayerData;
+use metalslug::models::season::SeasonDetail;
 
 #[starknet::interface]
 trait IMetalSlugImpl<TState> {
@@ -85,6 +86,36 @@ trait IMetalSlugImpl<TState> {
         ref self: TState, equipment_address: ContractAddress, equipment_id: u256
     );
 
+    /// Creates a new season.
+    ///
+    /// Requirements:
+    ///
+    /// - `start_time` The start time of the season.
+    /// - `end_time` The end time of the season.
+    ///
+    /// Emits a `UpdateSeason` event.
+    fn create_new_season(ref self: TState, start_time: u64, end_time: u64);
+
+    /// Cancels a season.
+    ///
+    /// Requirements:
+    ///
+    /// - `season_id` The id of the season to cancel.
+    ///
+    /// Emits a `CancelSeason` event.
+    fn cancel_season(ref self: TState, season_id: u32);
+
+    /// Updates a season.
+    ///
+    /// Requirements:
+    ///
+    /// - `season_id` The id of the season to update.
+    /// - `start_time` The start time of the season.
+    /// - `end_time` The end time of the season.
+    ///
+    /// Emits a `UpdateSeason` event.
+    fn update_season(ref self: TState, season_id: u32, start_time: u64, end_time: u64);
+
     /// Equips a weapon.
     ///
     /// Requirements:
@@ -162,6 +193,14 @@ trait IMetalSlugImpl<TState> {
         chest_id: u256,
         equipment_address: ContractAddress
     );
+
+    fn get_player_point(self: @TState, season_id: u32, player: ContractAddress) -> u256;
+
+    /// Returns the season detail.
+    fn get_season_detail(self: @TState, season_id: u32) -> SeasonDetail;
+
+    /// Returns the current season id.
+    fn get_current_season_id(self: @TState) -> u32;
 
     /// Returns the owner address
     fn get_owner(self: @TState) -> ContractAddress;

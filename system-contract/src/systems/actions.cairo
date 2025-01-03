@@ -8,6 +8,7 @@ mod MetalSlug {
     use metalslug::models::system::ValidatorSignature;
     use metalslug::models::player::{PlayerData, EquippedWeapon};
     use metalslug::models::equipment::{EquipmentType, EquipmentRarity, WeaponDefine};
+    use metalslug::models::season::{SeasonDetail, PlayerPoint};
     use metalslug::interfaces::system::IMetalSlugImpl;
     use metalslug::interfaces::account::{AccountABIDispatcher, AccountABIDispatcherTrait};
     use metalslug::interfaces::chest::{IMetalSlugChestDispatcher, IMetalSlugChestDispatcherTrait};
@@ -63,6 +64,7 @@ mod MetalSlug {
         equipment_id: Map::<(ContractAddress, u256), bool>,
         // mapping rarity => (min, max) bonus values
         rarity_bonus: Map::<felt252, (u16, u16)>,
+        current_season_id: u32,
     }
 
     // ============ Structs ============
@@ -108,6 +110,24 @@ mod MetalSlug {
 
     #[derive(Copy, Drop, Serde)]
     #[dojo::event]
+    struct CancelSeason {
+        #[key]
+        season_id: u32,
+        is_active: bool,
+    }
+
+    #[derive(Copy, Drop, Serde)]
+    #[dojo::event]
+    struct UpdateSeason {
+        #[key]
+        season_id: u32,
+        start_time: u64,
+        end_time: u64,
+        is_active: bool,
+    }
+
+    #[derive(Copy, Drop, Serde)]
+    #[dojo::event]
     struct ClaimEndMatchReward {
         #[key]
         player: ContractAddress,
@@ -122,6 +142,7 @@ mod MetalSlug {
         #[key]
         player: ContractAddress,
         points: u256,
+        season_id: u32,
         claimed_at: u64,
     }
 
@@ -305,6 +326,60 @@ mod MetalSlug {
                     }
         }
 
+        fn create_new_season(ref self: ContractState, start_time: u64, end_time: u64) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            assert(start_time < end_time, 'Invalid start time');
+
+            let mut world = self.world_default();
+
+            let current_season_id = self.current_season_id.read();
+            if current_season_id != 0 {
+                let season_detail: SeasonDetail = world.read_model(current_season_id);
+                assert(
+                    !season_detail.is_active || season_detail.end_time < get_block_timestamp(),
+                    'previous season not ended'
+                );
+            }
+            let season_id = current_season_id + 1;
+            self.current_season_id.write(season_id);
+
+            let season_detail = SeasonDetail {
+                season_id, start_time, end_time, total_points: 0, is_active: true
+            };
+            world.write_model(@season_detail);
+
+            world.emit_event(@UpdateSeason { season_id, start_time, end_time, is_active: true });
+        }
+
+        fn cancel_season(ref self: ContractState, season_id: u32) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            let mut world = self.world_default();
+            let mut season_detail: SeasonDetail = world.read_model(season_id);
+            assert(!season_detail.is_active, 'Season already canceled');
+            season_detail.is_active = false;
+            world.write_model(@season_detail);
+
+            world.emit_event(@CancelSeason { season_id, is_active: false });
+        }
+
+        fn update_season(ref self: ContractState, season_id: u32, start_time: u64, end_time: u64) {
+            self.assert_initialized();
+            self.assert_only_owner();
+            let mut world = self.world_default();
+            assert(start_time < end_time, 'Invalid start time');
+            let current_season_id = self.get_current_season_id();
+            assert(season_id == current_season_id, 'Invalid season id');
+            let mut season_detail: SeasonDetail = world.read_model(season_id);
+            assert(season_detail.is_active, 'Season not active');
+
+            season_detail.start_time = start_time;
+            season_detail.end_time = end_time;
+            world.write_model(@season_detail);
+            world.emit_event(@UpdateSeason { season_id, start_time, end_time, is_active: true });
+        }
+
         fn claim_end_match_reward(
             ref self: ContractState,
             treasury: u256,
@@ -353,6 +428,12 @@ mod MetalSlug {
         ) {
             self.assert_initialized();
             let mut world = self.world_default();
+            let season_id = self.get_current_season_id();
+            let mut season_detail: SeasonDetail = self.get_season_detail(season_id);
+            assert(
+                season_detail.is_active && season_detail.end_time > get_block_timestamp(),
+                'Season not active'
+            );
 
             let player: ContractAddress = get_caller_address();
 
@@ -372,10 +453,17 @@ mod MetalSlug {
                     }
                 );
 
+            season_detail.total_points += points;
+            world.write_model(@season_detail);
             let mut player_detail: PlayerData = world.read_model(player);
-            player_detail.points += points;
+            player_detail.total_points += points;
             world.write_model(@player_detail);
-            world.emit_event(@ClaimPoints { player, points, claimed_at: get_block_timestamp() });
+            let player_point = PlayerPoint { season_id, player, points };
+            world.write_model(@player_point);
+            world
+                .emit_event(
+                    @ClaimPoints { player, points, season_id, claimed_at: get_block_timestamp() }
+                );
         }
 
         fn graft_treasure_chest(
@@ -550,6 +638,21 @@ mod MetalSlug {
                         }
                     };
             equipment_ids.span()
+        }
+
+        fn get_season_detail(self: @ContractState, season_id: u32) -> SeasonDetail {
+            let world = self.world_default();
+            world.read_model(season_id)
+        }
+
+        fn get_current_season_id(self: @ContractState) -> u32 {
+            self.current_season_id.read()
+        }
+
+        fn get_player_point(self: @ContractState, season_id: u32, player: ContractAddress) -> u256 {
+            let world = self.world_default();
+            let player_point: PlayerPoint = world.read_model((season_id, player));
+            player_point.points
         }
     }
 

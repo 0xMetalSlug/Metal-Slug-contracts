@@ -6,6 +6,7 @@ mod models {
     mod player;
     mod system;
     mod equipment;
+    mod season;
 }
 
 mod interfaces {

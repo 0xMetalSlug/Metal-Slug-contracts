@@ -7,9 +7,7 @@ pub struct PlayerData {
     pub address: ContractAddress,
     treasury: u256,
     highest_match_level: u32,
-    equipped_weapon: ContractAddress,
-    equipped_weapons: Array<EquippedWeapon>,
-    points: u256,
+    total_points: u256,
 }
 
 #[derive(Drop, Copy, Serde, Introspect)]
