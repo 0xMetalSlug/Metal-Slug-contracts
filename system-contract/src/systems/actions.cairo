@@ -144,6 +144,7 @@ mod MetalSlug {
         points: u256,
         season_id: u32,
         claimed_at: u64,
+        salt_nonce: u64
     }
 
     #[derive(Copy, Drop, Serde)]
@@ -155,6 +156,7 @@ mod MetalSlug {
         chest_id: u256,
         amount: u256,
         claimed_at: u64,
+        salt_nonce: u64
     }
 
     #[derive(Copy, Drop, Serde)]
@@ -462,7 +464,9 @@ mod MetalSlug {
             world.write_model(@player_point);
             world
                 .emit_event(
-                    @ClaimPoints { player, points, season_id, claimed_at: get_block_timestamp() }
+                    @ClaimPoints {
+                        player, points, season_id, claimed_at: get_block_timestamp(), salt_nonce
+                    }
                 );
         }
 
@@ -503,7 +507,12 @@ mod MetalSlug {
             world
                 .emit_event(
                     @GraftTreasureChest {
-                        player, chest_address, chest_id, amount, claimed_at: get_block_timestamp()
+                        player,
+                        chest_address,
+                        chest_id,
+                        amount,
+                        claimed_at: get_block_timestamp(),
+                        salt_nonce
                     }
                 );
         }
